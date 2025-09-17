@@ -5,15 +5,19 @@
 #include <TROOT.h>
 #include "function_library.h"
 #include <TCanvas.h>
+#include <TF1Convolution.h>
 
+bool VerboseFlag = true; //print out problems
 
-bool VerboseFlag = false; //print out problems
-
-void FitSpectra();
+void FitSpectra(bool);
 
 double Sp_9B = -0.1859; //MeV
 
 double reduced_width_9B_resonance = 0.54/penetrability(4,1,8,1,1,-Sp_9B,1.25*(pow(8.,1./3.) + 1)) / 1e3; ///1e3 to convert to MeV - 0.54 keV ground-state width
+
+//this is a kludge but I need access to the functions outside the main loop to do calculations soooooo
+// TF1 *fitty;
+// TF1 *fGaus;
 
 double FitFunction(double *x, double *pars)
 {
@@ -29,16 +33,27 @@ double FitFunction(double *x, double *pars)
         
         double width = pars[1] * 2 * penetrability(4,1,8,1,1,x[0] - Sp_9B,1.25*(pow(8.,1./3.) + 1));
         
-        if(VerboseFlag)std::cout << "Energy = " << x[0] - Sp_9B << std::endl;
-        if(VerboseFlag)std::cout << "penetrability = " << penetrability(4,1,8,1,1,x[0] - Sp_9B,1.25*(pow(8.,1./3.) + 1)) << std::endl;    
-        if(VerboseFlag)std::cout << "width = " << width << std::endl;
+//         if(VerboseFlag)std::cout << "Energy = " << x[0] - Sp_9B << std::endl;
+//         if(VerboseFlag)std::cout << "penetrability = " << penetrability(4,1,8,1,1,x[0] - Sp_9B,1.25*(pow(8.,1./3.) + 1)) << std::endl;    
+//         if(VerboseFlag)std::cout << "width = " << width << std::endl;
         
         result = pars[0] * width / (pow(x[0] - pars[2],2.) + 0.25 * pow(width,2));//all terms in here are in MeV!
         
-        if(VerboseFlag)std::cout << "result = " << result << std::endl;
+//         if(VerboseFlag)std::cout << "result = " << result << std::endl;
     }
     else
         TF1::RejectPoint();//can't have decays below the threshold
+    
+    return result;
+}
+
+double GaussianPeak(double *x, double *pars)
+{
+    //pars[0] = height
+    //pars[1] = width
+    //NO POSITON - we smear at dawn/around the actual point for each thingy
+    
+    double result = pars[0] * TMath::Gaus(x[0],0,pars[1]);
     
     return result;
 }
@@ -57,16 +72,24 @@ double WidthFunction(double *x, double *pars)
     return width;
 }
     
-    
+// double ConvolvedFunction(double *x, double *pars)
+// {
+//     TF1Convolution *fConv = new TF1Convolution(fitty,fGaus,false);
+//         
+//     double result = fConv->EvalNumConv(x[0]);
+//     
+//     delete fConv;//only you can prevent memory leaks
+//     return result;
+// }
 
 int main()
 {
-    FitSpectra();
+    FitSpectra(false);
     
     return 0;
 }
 
-void FitSpectra()
+void FitSpectra(bool do_the_fitting = false)
 {
     TFile *fin = TFile::Open("b_spect_siliconcut.root");
     
@@ -79,19 +102,49 @@ void FitSpectra()
     c1->SetLogy();
     
     TF1 *fitty = new TF1("fitty",FitFunction,Sp_9B+0.01,1,3);
-    fitty->SetParameters(1.e5,reduced_width_9B_resonance,0.);
+    fitty->SetParameters(1.e3,reduced_width_9B_resonance,0.);
     fitty->Draw("same");
+    fitty->SetNpx(1e5);
+    
+    TF1 *fGaus = new TF1("fGaus",GaussianPeak,-5,5,2);
+    fGaus->SetParameters(1.e5,0.02);//guessed these
+    fGaus->SetLineColor(3);
+    fGaus->Draw("same");
+    fGaus->SetNpx(1e5);
+    
+    //assuming that the spectrum is described by the lineshape combined with a fat old Gaussian for resolution
+    TF1Convolution *fConv = new TF1Convolution(fitty,fGaus,false);
+    
+//     TF1 *fConvolved = new TF1("fConvolved",ConvolvedFunction,Sp_9B+0.01,1,3);
+    TF1 *fConvolved = new TF1("fConvolved",*fConv,-5,5,fConv->GetNpar());
+    if(VerboseFlag)std::cout << "fConvolved->GetNpar(): " << fConvolved->GetNpar() << std::endl;
+    fConvolved->SetParameters(
+//                               fitty->GetParameter(0),
+                              0.3,//this is an empirical guesstimate :)
+                              fitty->GetParameter(1),
+                              fitty->GetParameter(2),
+                              fGaus->GetParameter(0),
+                              fGaus->GetParameter(1)
+                );
+    
+    fConvolved->SetLineColor(4);
+    fConvolved->SetNpx(1e5);
+    fConvolved->Draw("same");
+    
+    if(do_the_fitting)hSingles->Fit(fConvolved,"BRLME");//this takes a long time, hence why it's got a gubbin to keep it from running each time if you're trying to guess initial parameters :)
+    
+    if(VerboseFlag)std::cout << "fConvolved->Eval(0): " << fConvolved->Eval(0) << std::endl;
     
 //     hSingles->Fit(fitty,"BRMLE");
     
-    TCanvas *c2 = new TCanvas();
+//     TCanvas *c2 = new TCanvas();
     
-    fitty->Draw("");
-    c2->SetLogy();
+//     fitty->Draw("");
+//     c2->SetLogy();
     
-    TCanvas *c3 = new TCanvas();
-    c3->SetLogy();
-    TF1 *widthF = new TF1("widthF",WidthFunction,Sp_9B+0.01,1,1);
-    widthF->SetParameter(0,reduced_width_9B_resonance);
-    widthF->Draw();
+//     TCanvas *c3 = new TCanvas();
+//     c3->SetLogy();
+//     TF1 *widthF = new TF1("widthF",WidthFunction,Sp_9B+0.01,1,1);
+//     widthF->SetParameter(0,reduced_width_9B_resonance);
+//     widthF->Draw();
 }
