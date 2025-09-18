@@ -7,9 +7,9 @@
 #include <TCanvas.h>
 #include <TF1Convolution.h>
 
-bool VerboseFlag = true; //print out problems
+bool VerboseFlag = false; //print out problems
 
-void FitSpectra(bool);
+void FitSpectra();
 
 double Sp_9B = -0.1859; //MeV
 
@@ -33,13 +33,13 @@ double FitFunction(double *x, double *pars)
         
         double width = pars[1] * 2 * penetrability(4,1,8,1,1,x[0] - Sp_9B,1.25*(pow(8.,1./3.) + 1));
         
-//         if(VerboseFlag)std::cout << "Energy = " << x[0] - Sp_9B << std::endl;
-//         if(VerboseFlag)std::cout << "penetrability = " << penetrability(4,1,8,1,1,x[0] - Sp_9B,1.25*(pow(8.,1./3.) + 1)) << std::endl;    
-//         if(VerboseFlag)std::cout << "width = " << width << std::endl;
+        if(VerboseFlag)std::cout << "Energy = " << x[0] - Sp_9B << std::endl;
+        if(VerboseFlag)std::cout << "penetrability = " << penetrability(4,1,8,1,1,x[0] - Sp_9B,1.25*(pow(8.,1./3.) + 1)) << std::endl;    
+        if(VerboseFlag)std::cout << "width = " << width << std::endl;
         
         result = pars[0] * width / (pow(x[0] - pars[2],2.) + 0.25 * pow(width,2));//all terms in here are in MeV!
         
-//         if(VerboseFlag)std::cout << "result = " << result << std::endl;
+        if(VerboseFlag)std::cout << "result = " << result << std::endl;
     }
     else
         TF1::RejectPoint();//can't have decays below the threshold
@@ -84,12 +84,12 @@ double WidthFunction(double *x, double *pars)
 
 int main()
 {
-    FitSpectra(false);
+    FitSpectra();
     
     return 0;
 }
 
-void FitSpectra(bool do_the_fitting = false)
+void FitSpectra()
 {
     TFile *fin = TFile::Open("b_spect_siliconcut.root");
     
@@ -131,9 +131,19 @@ void FitSpectra(bool do_the_fitting = false)
     fConvolved->SetNpx(1e5);
     fConvolved->Draw("same");
     
-    if(do_the_fitting)hSingles->Fit(fConvolved,"BRLME");//this takes a long time, hence why it's got a gubbin to keep it from running each time if you're trying to guess initial parameters :)
+    hSingles->Fit(fConvolved,"BRLME");//this takes a long time, comment it out if you don't want to fit and are just guessing parameters :)
     
     if(VerboseFlag)std::cout << "fConvolved->Eval(0): " << fConvolved->Eval(0) << std::endl;
+    
+    TFile *foutput = new TFile("FitResults.root","RECREATE");
+    
+    hSingles->Write();
+    fitty->Write();
+    fGaus->Write();
+    fConv->Write();
+    fConvolved->Write();
+    
+    foutput->Close();
     
 //     hSingles->Fit(fitty,"BRMLE");
     
