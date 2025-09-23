@@ -13,7 +13,7 @@ void FitSpectra();
 
 double Sp_9B = -0.1859; //MeV
 
-double reduced_width_9B_resonance = 0.54/penetrability(4,1,8,1,1,-Sp_9B,1.25*(pow(8.,1./3.) + 1)) / 1e3; ///1e3 to convert to MeV - 0.54 keV ground-state width
+double reduced_width_9B_resonance = 0.5*0.54/penetrability(4,1,8,1,1,-Sp_9B,1.25*(pow(8.,1./3.) + 1)) / 1e3; ///1e3 to convert to MeV - 0.54 keV ground-state width
 
 //this is a kludge but I need access to the functions outside the main loop to do calculations soooooo
 // TF1 *fitty;
@@ -31,7 +31,7 @@ double FitFunction(double *x, double *pars)
     if(x[0] - Sp_9B > 0)
     {
         
-        double width = pars[1] * 2 * penetrability(4,1,8,1,1,x[0] - Sp_9B,1.25*(pow(8.,1./3.) + 1));
+        double width = pars[1] * 2. * penetrability(4,1,8,1,1,x[0] - Sp_9B,1.25*(pow(8.,1./3.) + 1));
         
         if(VerboseFlag)std::cout << "Energy = " << x[0] - Sp_9B << std::endl;
         if(VerboseFlag)std::cout << "penetrability = " << penetrability(4,1,8,1,1,x[0] - Sp_9B,1.25*(pow(8.,1./3.) + 1)) << std::endl;    
@@ -131,17 +131,23 @@ void FitSpectra()
     fConvolved->SetNpx(1e5);
     fConvolved->Draw("same");
     
+    fConvolved->SetRange(-0.2,1);
+    
     hSingles->Fit(fConvolved,"BRLME");//this takes a long time, comment it out if you don't want to fit and are just guessing parameters :)
     
     if(VerboseFlag)std::cout << "fConvolved->Eval(0): " << fConvolved->Eval(0) << std::endl;
     
     TFile *foutput = new TFile("FitResults.root","RECREATE");
     
+    TF1 *widthF = new TF1("widthF",WidthFunction,Sp_9B+0.01,1,1);
+    widthF->SetParameter(0,reduced_width_9B_resonance);
+    
     hSingles->Write();
     fitty->Write();
     fGaus->Write();
     fConv->Write();
     fConvolved->Write();
+    widthF->Write();
     
     foutput->Close();
     
@@ -154,7 +160,6 @@ void FitSpectra()
     
 //     TCanvas *c3 = new TCanvas();
 //     c3->SetLogy();
-//     TF1 *widthF = new TF1("widthF",WidthFunction,Sp_9B+0.01,1,1);
-//     widthF->SetParameter(0,reduced_width_9B_resonance);
+    
 //     widthF->Draw();
 }
