@@ -48,7 +48,7 @@ dchain->Add("sorted10067.root");
 dchain->Add("sorted10068.root"); 
 dchain->Add("sorted10070.root"); 
 dchain->Add("sorted10071.root"); 
-dchain->Add("sorted10073.root"); 
+dchain->Add("sorted10073.root");
 
 int entries = dchain->GetEntries();
 
@@ -82,138 +82,91 @@ for(int j = 0; j < entries; j++)
  dchain->Draw("pad1:X1pos>>hCUTpad1X1","!X1flag && !U1flag","col");
  hCUTpad1X1->Write();
 
-dchain->SetAlias("newX1pos","X1pos+0.0127483*(tof-3120)-0.000332362*pow(tof-3120,2.)"); // Scattering Angle correction Daniel manual
-
-/*
-//--------------TOF v.s. Focal Plane position (bananas)
-//tof versus Focal plane position X1pos
-TCanvas *c3 = new TCanvas();
-   TH2F *htofvsX1pos = new TH2F("htofvsX1pos","TOF vs X1pos",1000,-100,1000,1000,2950,3300);
-   dchain->Draw("tof:X1pos>>htofvsX1pos","CUTpad1tof && CUTpad1X1 && !X1flag && !U1flag","col");
-   htofvsX1pos->Write();
-
-//tof versus Focal plane position newX1pos
-TCanvas *c4 = new TCanvas();
-   TH2F *htofvsnewX1pos = new TH2F("htofvsnewX1pos","TOF vs newX1pos",1000,-100,1000,1000,2950,3300);
-   dchain->Draw("tof:newX1pos>>htofvsnewX1pos","CUTpad1tof && CUTpad1X1 && !X1flag && !U1flag","col");
-   htofvsnewX1pos->Write();
-*/
-
-//------- Spectrum + Tritons Cut only
+// -----------------------    Focal Plane position
+//------------------------    Spectrum + Tritons Cut only
 //TCanvas *cFocalPlane1pos = new TCanvas();
+ dchain->SetAlias("newX1pos","X1pos+0.0127483*(tof-3120)-0.000332362*pow(tof-3120,2.)"); // Scattering Angle correction Daniel manual
  TH1F *hnewX1pos = new TH1F("hnewX1pos","X1pos+Scatter Angle Correction 9B;Focal Plane (arb. units);Counts",1200,-10,800);
  dchain->Draw("newX1pos>>hnewX1pos","CUTpad1tof && CUTpad1X1 && !X1flag && !U1flag","col");
  hnewX1pos->Write();
 
-// ------- Spectrum + Tritons Cut in Kinetic Energy of Tritons
-// We take values from Terminal for linear calibration
-// p0 = 40.9662, p1 = 0.0111842, p2 = -8.32757e-07 
- //dchain->SetAlias("Et","40.9662+newX1pos*0.0111842-0.000000832757*pow(newX1pos,2.)");
- dchain->SetAlias("Et","40.9662+newX1pos*0.0111842-0.000000584097*pow(newX1pos,2.)"); //(Typo???)
-//TCanvas *cFocalPlane2Kin = new TCanvas();
- TH1F *K = new TH1F("K","Kinetic_t + ScatCorr 9B; Kinetic_t (MeV);Counts",1200,40.85,49.38);
- dchain->Draw("Et>>K","CUTpad1tof && CUTpad1X1 && !X1flag && !U1flag","col");
- K->Write();
+// p0 = 4.913, p1 = -0.0106291
+//dchain->SetAlias("Exx","7.848 - 0.0106291*newX1pos");//Slope from 26Mg calib - intercept used to fix G.S. = 0
+//dchain->SetAlias("Exx","7.938 - newX1pos*0.0111842 + 0.000000584097*pow(newX1pos,2.)");
+dchain->SetAlias("Exx","50.0-40.9632-1.08662683205-0.01215 - newX1pos*0.0111842 + 0.000000584097*pow(newX1pos,2.)");
+//50.0-40.9662-1.08662683205-0.01215
 
-// ------- --- Spectrum + Tritons Cut + Calibrated in Excitation Energy
-// Ex = Eb - Et - Qval - Eloss
-  dchain->SetAlias("Exx","50.0-Et-1.08662683205-0.01215"); //
-//TCanvas *cFocalPlane3Ex = new TCanvas();
-  TH1F *Ex_t = new TH1F("Ex_t","9B Spectrum Calibrated ; Ex (MeV);Counts",1200,-1,8);
-  dchain->Draw("Exx>>Ex_t","CUTpad1tof && CUTpad1X1 && !X1flag && !U1flag","col");
-  Ex_t->Write();
+// --------------------------------------------------
+// -----------------------    Singles ---------------
+// --------------------------------------------------
 
-// ---------* a) Single Spectrum  ---  Spectrum + abs(SiliconTime-tof)<200  
+// -----------------------    Plot CAKE vs Exx
+ //TCanvas *cCakeExx1 = new TCanvas();
+  TH2F *SiliconEnergysvsExx1 = new TH2F("SiliconEnergysvsExx1","SiliconEnergy_:Exx_ 9B;Ex [MeV];Silicon Energy [arb. units] ",1200,-1,9,1200,0,10000);
+  dchain->Draw("SiliconEnergy:Exx>>SiliconEnergysvsExx1","CUTpad1tof && CUTpad1X1 && !X1flag && !U1flag","col");
+  SiliconEnergysvsExx1->Write();
+
+// -----------------------    Excitation Energy
+// -----------------------    Singles Spectrum  // Singles = FP ONLY (NO CAKE)
  //TCanvas *cSingles = new TCanvas();
- TH1F *Ex_sinlges = new TH1F("Ex_sinlges","a) 9B Spectrum (Target 2) Singles ; Ex (MeV);Counts",1200,-1,8);
- dchain->Draw("Exx>>Ex_sinlges","CUTpad1tof && CUTpad1X1 && abs(SiliconTime-tof)<200 && !X1flag && !U1flag && SiliconHits==1 &&  TDCChannelFront!=868 && TDCChannelFront!=870 && TDCChannelFront!=880 && TDCChannelFront!=720","col");
+ TH1F *Ex_sinlges = new TH1F("Ex_sinlges","9B Singles Spectrum ; Ex (MeV);Counts",1200,-1,8);
+ dchain->Draw("Exx>>Ex_sinlges","CUTpad1tof && CUTpad1X1 && !X1flag && !U1flag","col"); 
    Ex_sinlges->Write();
+
+// -----------------------    Plot Exx using CUTS from Plot CAKE vs Exx
+//  ----------------------    Spectrum 9B + Protons CUT + low lying region
+  //TCanvas *cpCut1 = new TCanvas();
+  TH1F *Spectrum_pCut1 = new TH1F("Spectrum_pCut1","9B Spectrum proton Cut ; Ex (MeV);Counts",1200,-2,8);
+  dchain->Draw("Exx>>Spectrum_pCut1","CUTpad1tof && CUTprotons_gs && !X1flag && !U1flag","col"); //cut9BProtonsThin
+  Spectrum_pCut1->Write();
+
+//  ------ Spectrum 9B + 9B gs CUT + low lying region
+  TCanvas *c9BgsCut1 = new TCanvas();
+  TH1F *Spectrum_9BgsCut1 = new TH1F("Spectrum_9BgsCut1","9B Spectrum 9B g.s. Cut ; Ex (MeV);Counts",1200,-2,8);
+  dchain->Draw("Exx>>Spectrum_9BgsCut1","CUTpad1tof && CUT9B_gs && !X1flag && !U1flag","col");
+  Spectrum_9BgsCut1->Write();
+   
+//  ------ Spectrum 9B + 5Li CUT + low lying region
+  //TCanvas *cAlphaCut1 = new TCanvas();
+  TH1F *Spectrum_5LiCut1 = new TH1F("Spectrum_5LiCut1","9B Spectrum alpha Cut ; Ex (MeV);Counts",1200,-2,8);
+  dchain->Draw("Exx>>Spectrum_5LiCut1","CUTpad1tof && CUT5Li && !X1flag && !U1flag","col");
+  Spectrum_5LiCut1->Write();
+
+// --------------------------------------------------
+// -----------------------    Coincidences ----------
+// --------------------------------------------------
 
 // -----------------------    Plot CAKE vs Exx
 // -----------------------    For make a TCutG of SiliconEnergy vs Exx " CUTprotons.C & CUTalfas.C"
- //TCanvas *cCakeExx = new TCanvas();
-  TH2F *SiliconEnergysvsExx = new TH2F("SiliconEnergysvsExx","SiliconEnergy_:Exx_ 9B;Ex [MeV];Silicon Energy [arb. units] ",1200,-1,9,1200,0,10000);
-  dchain->Draw("SiliconEnergy:Exx>>SiliconEnergysvsExx","CUTpad1tof && CUTpad1X1 && !X1flag && !U1flag && abs(SiliconTime-tof)<200 && SiliconHits==1 &&  TDCChannelFront!=868 && TDCChannelFront!=870 && TDCChannelFront!=880 && TDCChannelFront!=720","col");
-  // omitting time gatting
-  //dchain->Draw("SiliconEnergy:Exx>>SiliconEnergysvsExx","CUTpad1tof && CUTpad1X1 && !X1flag && !U1flag && SiliconHits==1 &&  TDCChannelFront!=868 && TDCChannelFront!=870 && TDCChannelFront!=880 && TDCChannelFront!=720","col");
-  SiliconEnergysvsExx->Write();
+ //TCanvas *cCakeExx2 = new TCanvas();
+  TH2F *SiliconEnergysvsExx2 = new TH2F("SiliconEnergysvsExx2","SiliconEnergy_:Exx_ 9B;Ex [MeV];Silicon Energy [arb. units] ",1200,-1,9,1200,0,10000);
+  dchain->Draw("SiliconEnergy:Exx>>SiliconEnergysvsExx2","CUTpad1tof && CUTpad1X1 && !X1flag && !U1flag && abs(SiliconTime-tof)<200 && SiliconHits==1 &&  TDCChannelFront!=868 && TDCChannelFront!=870 && TDCChannelFront!=880 && TDCChannelFront!=720","col");
+  SiliconEnergysvsExx2->Write();
 
-
-// Plot Exx using CUTS from Plot CAKE vs Exx
-//  ------ Spectrum 9B + Protons CUT + low lying region
-  //TCanvas *cSpectrum = new TCanvas();
-  TH1F *Spectrum_pCut = new TH1F("Spectrum_pCut","9B Spectrum_pCut ; Ex (MeV);Counts",1200,-2,8);
-  dchain->Draw("Exx>>Spectrum_pCut","CUTpad1tof && CUTprotons_gs && !X1flag && !U1flag && abs(SiliconTime-tof)<200","col"); //cut9BProtonsThin
-  // omitting time gatting
-  //dchain->Draw("Exx>>Spectrum_pCut","CUTpad1tof && CUTprotons_gs && !X1flag && !U1flag","col");
-  Spectrum_pCut->Write();
+// -----------------------    Excitation Energy
+// -----------------------    Coincidences  ---  Spectrum + abs(SiliconTime-tof)<200  
+ //TCanvas *cCoincidences = new TCanvas();
+ // p0 = 4.913, p1 = -0.0106291
+ TH1F *Ex_coincidences = new TH1F("Ex_coincidences","a) 9B Coincidences Spectrum ; Ex (MeV);Counts",1200,-1,8);
+ dchain->Draw("Exx>>Ex_coincidences","CUTpad1tof && CUTpad1X1 && abs(SiliconTime-tof)<200 && !X1flag && !U1flag && SiliconHits==1 &&  TDCChannelFront!=868 && TDCChannelFront!=870 && TDCChannelFront!=880 && TDCChannelFront!=720","col");
+   Ex_coincidences->Write();
+  
+// -----------------------    Plot Exx using CUTS from Plot CAKE vs Exx
+//  ----------------------    Spectrum 9B + Protons CUT + low lying region
+  //TCanvas *cpCut_2 = new TCanvas();
+  TH1F *Spectrum_pCut2 = new TH1F("Spectrum_pCut2","9B Spectrum proton Cut ; Ex (MeV);Counts",1200,-2,8);
+  dchain->Draw("Exx>>Spectrum_pCut2","CUTpad1tof && CUTprotons_gs && !X1flag && !U1flag && abs(SiliconTime-tof)<200","col"); //cut9BProtonsThin
+  Spectrum_pCut2->Write();
   
 //  ------ Spectrum 9B + 9B gs CUT + low lying region
-  //TCanvas *cSpectrum2 = new TCanvas();
-  TH1F *Spectrum_9BgsCut = new TH1F("Spectrum_9BgsCut","9B Spectrum_9BgsCut ; Ex (MeV);Counts",1200,-2,8);
-  //dchain->Draw("Exx>>Spectrum_9BgsCut","CUTpad1tof && CUT9B_gs && !X1flag && !U1flag && abs(SiliconTime-tof)<200","col"); //cut9BgsThin
-  // omitting time gatting
-  dchain->Draw("Exx>>Spectrum_9BgsCut","CUTpad1tof && CUT9B_gs && !X1flag && !U1flag","col");
-  Spectrum_9BgsCut->Write();
+  //TCanvas *c9BgsCut2 = new TCanvas();
+  TH1F *Spectrum_9BgsCut2 = new TH1F("Spectrum_9BgsCut2","9B Spectrum 9B g.s. Cut ; Ex (MeV);Counts",1200,-2,8);
+  dchain->Draw("Exx>>Spectrum_9BgsCut2","CUTpad1tof && CUT9B_gs && !X1flag && !U1flag && abs(SiliconTime-tof)<200","col"); //cut9BgsThin
+  Spectrum_9BgsCut2->Write();
    
 //  ------ Spectrum 9B + 5Li CUT + low lying region
-  //TCanvas *cSpectrum3 = new TCanvas();
-  TH1F *Spectrum_5LiCut = new TH1F("Spectrum_5LiCut","9B Spectrum_5LiCut ; Ex (MeV);Counts",1200,-2,8);
-  //dchain->Draw("Exx>>Spectrum_5LiCut","CUTpad1tof && CUT5Li && !X1flag && !U1flag && abs(SiliconTime-tof)<200","col"); //cut5LiThin
-  // omitting time gatting
-  dchain->Draw("Exx>>Spectrum_5LiCut","CUTpad1tof && CUT5Li && !X1flag && !U1flag","col");
-  Spectrum_5LiCut->Write();
-
-// -------------------  Plot Caketime vs Cake Energy
-// -------------------  For make a TCutG of tritons SiliconTimeOffset-tof vs SiliconEnergy" CUTptime.C & CUTatime"
-  //TCanvas *cCaketime = new TCanvas();
-  TH2F *Caketime = new TH2F("Caketime","All Detectors ;ESilicon [keV];Tsi-Tk600/ns ",1200,0,10000,1200,-3500,-2900);
-  dchain->Draw("SiliconTimeOffset-tof:SiliconEnergy>>Caketime"," CUTpad1tof && CUTpad1X1 && !X1flag && !U1flag && SiliconHits==1 &&  TDCChannelFront!=868 && TDCChannelFront!=870 && TDCChannelFront!=880 && TDCChannelFront!=720 && abs(tof)<1e4 && abs(SiliconTime[0])<1e5","col");   
-  Caketime->Write();
-
-// Plot Exx using CUTS from Plot Caketime vs Cake Energy
-// ---------* b) Proton Spectrum  ---  Spectrum + abs(SiliconTime-tof)<200  
-  //TCanvas *cproton = new TCanvas();
-  TH1F *Ex_protons = new TH1F("Ex_protons","b) 9B Spectrum (Target 2) Proton decay gates ; Ex (MeV);Counts",1200,-1,8);
-  dchain->Draw("Exx>>Ex_protons","CUTpad1tof && CUTpad1X1 && CUTptime && abs(SiliconTime-tof)<200 && !X1flag && !U1flag && SiliconHits==1 &&  TDCChannelFront!=868 && TDCChannelFront!=870 && TDCChannelFront!=880 && TDCChannelFront!=720","col");
-  Ex_protons->Write();
-
-// ---------* b) Alphas Spectrum  ---  Spectrum + abs(SiliconTime-tof)<200  
-  //TCanvas *calfas = new TCanvas();
-  TH1F *Ex_alfas = new TH1F("Ex_alfas","c) 9B Spectrum (Target 2) Alpha decay gates ; Ex (MeV);Counts",1200,-1,8);
-  dchain->Draw("Exx>>Ex_alfas","CUTpad1tof && CUTpad1X1 && CUTatime && abs(SiliconTime-tof)<200 && !X1flag && !U1flag && SiliconHits==1 &&  TDCChannelFront!=868 && TDCChannelFront!=870 && TDCChannelFront!=880 && TDCChannelFront!=720","col");
-  Ex_alfas->Write();
-
-// ----------- CAKE -----------
-
-/*
-//TCanvas *c77711 = new TCanvas();
-TH2F *Caketime1 = new TH2F("Caketime1","Detector 1;ESilicon [keV];Tsi-Tk600/ns ",1200,0,10000,1200,-3500,-2900);
-dchain->Draw("(SiliconTimeOffset-tof):SiliconEnergy>>Caketime1"," CUTpad1tof && CUTpad1X1 && !X1flag && !U1flag && SiliconHits==1 && TDCChannelFront!=868 && TDCChannelFront!=870 && TDCChannelFront!=880 && TDCChannelFront!=720 && abs(tof)<1e4 && abs(SiliconTime[0])<1e5 && DetectorHit==1","col");   
-Caketime1->Write();
-
-//TCanvas *c77722 = new TCanvas();
-TH2F *Caketime2 = new TH2F("Caketime2","Detector 2;ESilicon [keV];Tsi-Tk600/ns ",1200,0,10000,1200,-3500,-2900);
-dchain->Draw("(SiliconTimeOffset-tof):SiliconEnergy>>Caketime2"," CUTpad1tof && CUTpad1X1 && !X1flag && !U1flag && SiliconHits==1 && TDCChannelFront!=868 && TDCChannelFront!=870 && TDCChannelFront!=880 && TDCChannelFront!=720 && abs(tof)<1e4 && abs(SiliconTime[0])<1e5 && DetectorHit==2","col");   
-Caketime2->Write();
-
-//TCanvas *c77733 = new TCanvas();
-TH2F *Caketime3 = new TH2F("Caketime3","Detector 3;ESilicon [keV];Tsi-Tk600/ns ",1200,0,10000,1200,-3500,-2900);
-dchain->Draw("(SiliconTimeOffset-tof):SiliconEnergy>>Caketime3"," CUTpad1tof && CUTpad1X1 && !X1flag && !U1flag && SiliconHits==1 && TDCChannelFront!=868 && TDCChannelFront!=870 && TDCChannelFront!=880 && TDCChannelFront!=720 && abs(tof)<1e4 && abs(SiliconTime[0])<1e5 && DetectorHit==3","col");   
-Caketime3->Write();
-
-//TCanvas *c77744 = new TCanvas();
-TH2F *Caketime4 = new TH2F("Caketime4","Detector 4;ESilicon [keV];Tsi-Tk600/ns ",1200,0,10000,1200,-3500,-2900);
-dchain->Draw("(SiliconTimeOffset-tof):SiliconEnergy>>Caketime4"," CUTpad1tof && CUTpad1X1 && !X1flag && !U1flag && SiliconHits==1 && TDCChannelFront!=868 && TDCChannelFront!=870 && TDCChannelFront!=880 && TDCChannelFront!=720 && abs(tof)<1e4 && abs(SiliconTime[0])<1e5 && DetectorHit==4","col");   
-Caketime4->Write();
-
-//TCanvas *c77755 = new TCanvas();
-TH2F *Caketime5 = new TH2F("Caketime5","Detector 5;ESilicon [keV];Tsi-Tk600/ns ",1200,0,10000,1200,-3500,-2900);
-  dchain->Draw("(SiliconTimeOffset-tof):SiliconEnergy>>Caketime5"," CUTpad1tof && CUTpad1X1 && !X1flag && !U1flag && SiliconHits==1 && TDCChannelFront!=868 && TDCChannelFront!=870 && TDCChannelFront!=880 && TDCChannelFront!=720 && abs(tof)<1e4 && abs(SiliconTime[0])<1e5 && DetectorHit==5","col"); 
-  Caketime5->Write();
-*/
-
-  dchain->Draw("(5+StripFront)/30.*pi:(StripBack+(DetectorHit-1)*8)*2*pi/40.>>hcake(80,-6.28318,6.28318,60,-3.141592,3.141592)","","polcolz");
-
-t.Print();
+  //TCanvas *cAlphaCut2 = new TCanvas();
+  TH1F *Spectrum_5LiCut2 = new TH1F("Spectrum_5LiCut2","9B Spectrum alpha Cut ; Ex (MeV);Counts",1200,-2,8);
+  dchain->Draw("Exx>>Spectrum_5LiCut2","CUTpad1tof && CUT5Li && !X1flag && !U1flag && abs(SiliconTime-tof)<200","col"); //cut5LiThin
+  Spectrum_5LiCut2->Write();
 }
