@@ -46,8 +46,11 @@ double FitFunction(double *x, double *pars)
         result += pars[3] * width1 / (pow(x[0] - pars[5],2.) + 0.25 * pow(width1,2));
         
         // 2nd excited state 5/2 l=2 // If x[0]-Sa > 0 then compute this
-        double width2 = pars[7] * 2 * penetrability(3,2,5,4,2,x[0] - Sp_9B,1.25*(pow(5.,1./3.) + pow(4.,1./3.))); //5Li + alpha 
-        result += pars[6] * width2 / (pow(x[0] - pars[8],2.) + 0.25 * pow(width2,2));
+        if(x[0] - Sp_9B > 0)
+        {
+          double width2 = pars[7] * 2 * penetrability(3,2,5,4,2,x[0] - Sp_9B,1.25*(pow(5.,1./3.) + pow(4.,1./3.))); //5Li + alpha 
+          result += pars[6] * width2 / (pow(x[0] - pars[8],2.) + 0.25 * pow(width2,2));
+        }
         
         // 3rd excited state 5/2 l=2
         double width3 = pars[10] * 2 * penetrability(4,1,8,1,2,x[0] - Sp_9B,1.25*(pow(5.,1./3.) + 1)); //8Be+p 
@@ -63,13 +66,29 @@ double FitFunction(double *x, double *pars)
     return result;
 }
 
-double GaussianPeak(double *x, double *pars)// Change to EMG
+double GaussianPeak(double *x, double *pars)
 {
     //pars[0] = height
     //pars[1] = width
     //NO POSITON - we smear at dawn/around the actual point for each thingy
     
     double result = pars[0] * TMath::Gaus(x[0],0,pars[1]);
+    
+    return result;
+}
+
+double ExponentialModifiedGaussianPeak(double *x, double *pars)
+{
+    
+    // par[0]=Amplitude, par[1]=Mean, par[2]=Sigma, par[3]=Exponential Lambda  
+    //double result = pars[0]*pars[3]/2.*exp(pars[3]/2.*(2.*pars[1]+pars[3]*pars[2]*pars[2]-2.*x[0]))*TMath::Erfc((pars[1]+pars[3]*pars[2]*pars[2]-x[0])/(sqrt(2.)*pars[2]));
+    
+    // Mean=0, Exponential Lambda = 100
+    double mean = 0; 
+    double lambda =100;
+    
+    // pars[0]=Amplitude, pars[1]=Sigma   
+    double result = pars[0]*lambda/2.*exp(lambda/2.*(2.*mean+lambda*pars[2]*pars[1]-2.*x[0]))*TMath::Erfc((mean+lambda*pars[1]*pars[1]-x[0])/(sqrt(2.)*pars[1]));
     
     return result;
 }
@@ -93,12 +112,12 @@ void FitSpectra()
     
     c1->SetLogy();
     
-    TF1 *fitty = new TF1("fitty",FitFunction,Sp_9B+0.01,3,12);//1 state 3 parameters -> 2 states 6 parameters
+    TF1 *fitty = new TF1("fitty",FitFunction,Sp_9B+0.01,3,15);//1 state 3 parameters -> 2 states 6 parameters
     //fitty->SetParameters(50,reduced_width_9B_resonance_0,0);//GS
     //fitty->SetParameters(50,reduced_width_9B_resonance_0,0,300.,reduced_width_9B_resonance_1,1.86);//GS + 1st excited state
     //fitty->SetParameters(50,reduced_width_9B_resonance_0,0,300.,reduced_width_9B_resonance_1,1.86,250,reduced_width_9B_resonance_2,2.345);//GS + 1st + 2nd
     
-    //GS + 1st+ 2nd + 3rd
+    //GS + 1st + 2nd + 3rd + 4th
     fitty->SetParameter(0,50);
     fitty->SetParameter(1,reduced_width_9B_resonance_0);
     fitty->SetParameter(2,0);
@@ -111,43 +130,60 @@ void FitSpectra()
     fitty->SetParameter(9,50);
     fitty->SetParameter(10,reduced_width_9B_resonance_3);
     fitty->SetParameter(11,2.75);
+    fitty->SetParameter(12,3000);
+    fitty->SetParameter(13,reduced_width_9B_resonance_4);
+    fitty->SetParameter(14,2.79);
     
     fitty->Draw("same");
     fitty->SetNpx(1e5);
     
     TF1 *fGaus = new TF1("fGaus",GaussianPeak,-0.2,3,2);
-    fGaus->SetParameters(195,0.01);//height and width
+    fGaus->SetParameters(650,0.02);//height and width
     fGaus->SetLineColor(3);
     fGaus->Draw("same");
     fGaus->SetNpx(1e5);
     
+    TF1 *fEMG = new TF1("fEMG",ExponentialModifiedGaussianPeak,-0.2,3,2);
+    //fEMG->SetParameters(100,0,0.01,100);//amplitude, mean, width and lambda
+    fEMG->SetParameters(15,0.005);//amplitude and width
+    fEMG->SetLineColor(3);
+    fEMG->Draw("same");
+    fEMG->SetNpx(1e5);
+
+// /* Commenting while defining emg correctly
     //assuming that the spectrum is described by the lineshape combined with a fat old Gaussian for resolution
-    TF1Convolution *fConv = new TF1Convolution(fitty,fGaus,false);
+    TF1Convolution *fConv = new TF1Convolution(fitty,fEMG,false);
     
     TF1 *fConvolved = new TF1("fConvolved",*fConv,-0.2,3,fConv->GetNpar());
     if(VerboseFlag)std::cout << "fConvolved->GetNpar(): " << fConvolved->GetNpar() << std::endl;
     
     //Setting parameters from fitty 
-    for(int i=0;i<12;i++)
+    for(int i=0;i<15;i++)
       fConvolved->SetParameter(i,fitty->GetParameter(i));
     
     //Setting parameters from fGaus
-    fConvolved->SetParameter(12,fGaus->GetParameter(0));
-    fConvolved->SetParameter(13,fGaus->GetParameter(1));
+    //fConvolved->SetParameter(15,fGaus->GetParameter(0));
+    //fConvolved->SetParameter(16,fGaus->GetParameter(1));
+    
+    //Setting parameters from fEMGs
+    fConvolved->SetParameter(15,fEMG->GetParameter(0));
+    fConvolved->SetParameter(16,fEMG->GetParameter(1));
     
     fConvolved->SetLineColor(4);
     fConvolved->SetNpx(1e5);
-    fConvolved->Draw("same");
-    
+    fConvolved->Draw("same"); 
+  
     //hSingles->Fit(fConvolved,"BRLME");//this takes a long time, comment it out if you don't want to fit and are just guessing parameters :)
     
     if(VerboseFlag)std::cout << "fConvolved->Eval(0): " << fConvolved->Eval(0) << std::endl;
+// */
     
     TFile *foutput = new TFile("FitResults.root","RECREATE");
     
     hSingles->Write();
     fitty->Write();
     fGaus->Write();
+    fEMG->Write();
     fConv->Write();
     fConvolved->Write();
     
